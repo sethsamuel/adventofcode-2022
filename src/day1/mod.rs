@@ -1,6 +1,3 @@
-use std::fs;
-use std::path::Path;
-
 #[derive(Debug, Clone)]
 struct Elf {
     total_weight: u64,
@@ -69,17 +66,14 @@ mod tests {
 
 #[allow(dead_code)]
 pub fn part1() {
-    let path = Path::new("src/day1/input.txt");
-    let contents = fs::read_to_string(path).expect("Should have been able to read the file");
-
+    let contents = super::read_file(module_path!());
     let elf = find_highest_weight(&mut parse_file(contents.as_str()));
     println!("{}", elf.total_weight);
 }
 
 #[allow(dead_code)]
 pub fn part2() {
-    let path = Path::new("src/day1/input.txt");
-    let contents = fs::read_to_string(path).expect("Should have been able to read the file");
+    let contents = super::read_file(module_path!());
 
     println!("{}", find_top_3_weight(&mut parse_file(contents.as_str())));
 }

@@ -1,6 +1,3 @@
-use std::fs;
-use std::path::Path;
-
 #[derive(Debug, Clone, PartialEq)]
 enum Play {
     Rock = 0,
@@ -178,13 +175,7 @@ pub fn part1() {
 
 #[allow(dead_code)]
 pub fn part2() {
-    let file_path = format!(
-        "src/{}/input.txt",
-        module_path!().split("::").last().unwrap()
-    )
-    .to_owned();
-    let path = Path::new(file_path.as_str());
-    let contents = fs::read_to_string(path).expect("Should have been able to read the file");
+    let contents = super::read_file(module_path!());
 
     println!("{}", score_rounds(parse_file_2(contents.as_str())))
 }
