@@ -3,15 +3,28 @@ use std::ops::RangeInclusive;
 use crate::file::read_file;
 
 trait ContainsRange<Idx> {
-    fn contains_range(&self, range: RangeInclusive<Idx>) -> bool;
+    fn contains_range(&self, range: &RangeInclusive<Idx>) -> bool;
 }
 
 impl<Idx> ContainsRange<Idx> for RangeInclusive<Idx>
 where
     Idx: PartialOrd<Idx>,
 {
-    fn contains_range(&self, range: RangeInclusive<Idx>) -> bool {
-        self.contains(&range.start()) && self.contains(&range.end())
+    fn contains_range(&self, range: &RangeInclusive<Idx>) -> bool {
+        self.contains(range.start()) && self.contains(range.end())
+    }
+}
+
+trait OverlapsRange<Idx> {
+    fn overlaps_range(&self, range: &RangeInclusive<Idx>) -> bool;
+}
+
+impl<Idx> OverlapsRange<Idx> for RangeInclusive<Idx>
+where
+    Idx: PartialOrd<Idx>,
+{
+    fn overlaps_range(&self, range: &RangeInclusive<Idx>) -> bool {
+        range.contains_range(self) || self.contains(&range.start()) || self.contains(&range.end())
     }
 }
 
@@ -36,9 +49,14 @@ fn parse_file(text: &str) -> Vec<ElfPair> {
 
 fn get_redundant_elfs(elfs: &Vec<ElfPair>) -> Vec<ElfPair> {
     elfs.iter()
-        .filter(|pair| {
-            pair.0.contains_range(pair.1.clone()) || pair.1.contains_range(pair.0.clone())
-        })
+        .filter(|pair| pair.0.contains_range(&pair.1) || pair.1.contains_range(&pair.0))
+        .map(|p| p.clone())
+        .collect()
+}
+
+fn get_overlap_elfs(elfs: &Vec<ElfPair>) -> Vec<ElfPair> {
+    elfs.iter()
+        .filter(|pair| pair.0.overlaps_range(&pair.1))
         .map(|p| p.clone())
         .collect()
 }
@@ -56,12 +74,26 @@ mod tests {
 
     #[test]
     fn test_contains_range() {
-        assert!((0..=2).contains_range(0..=1));
-        assert!((0..=2).contains_range(0..=2));
-        assert!((0..=2).contains_range(1..=1));
-        assert!((0..=2).contains_range(1..=2));
-        assert!(!(0..=2).contains_range(0..=3));
-        assert!(!(0..=2).contains_range(3..=4));
+        assert!((0..=2).contains_range(&(0..=1)));
+        assert!((0..=2).contains_range(&(0..=2)));
+        assert!((0..=2).contains_range(&(1..=1)));
+        assert!((0..=2).contains_range(&(1..=2)));
+        assert!(!(0..=2).contains_range(&(0..=3)));
+        assert!(!(0..=2).contains_range(&(3..=4)));
+    }
+
+    #[test]
+    fn test_overlaps_range() {
+        assert!((0..=2).overlaps_range(&(0..=1)));
+        assert!((0..=2).overlaps_range(&(0..=2)));
+        assert!((0..=2).overlaps_range(&(1..=1)));
+        assert!((0..=2).overlaps_range(&(1..=2)));
+        assert!((0..=2).overlaps_range(&(0..=3)));
+        assert!(!(0..=2).overlaps_range(&(3..=4)));
+        assert!((0..=1).overlaps_range(&(0..=3)));
+        assert!((2..=4).overlaps_range(&(0..=2)));
+        assert!((2..=4).overlaps_range(&(0..=3)));
+        assert!((2..=4).overlaps_range(&(0..=5)));
     }
 
     #[test]
@@ -77,6 +109,13 @@ mod tests {
         let redundant_elfs = get_redundant_elfs(&elfs);
         assert_eq!(redundant_elfs.len(), 2);
     }
+
+    #[test]
+    fn test_get_overlap_elfs() {
+        let elfs = parse_file(TEST_STR);
+        let overlap_elfs = get_overlap_elfs(&elfs);
+        assert_eq!(overlap_elfs.len(), 4);
+    }
 }
 
 #[allow(dead_code)]
@@ -91,7 +130,8 @@ pub fn part1() {
 #[allow(dead_code)]
 pub fn part2() {
     let contents = read_file(module_path!());
-    todo!("{}", contents)
+    let elfs = parse_file(&contents);
+    let overlap_elfs = get_overlap_elfs(&elfs);
 
-    // println!("{}", sum_overlaps(&overlaps));
+    println!("{}", overlap_elfs.len());
 }
