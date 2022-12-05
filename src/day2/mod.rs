@@ -1,3 +1,5 @@
+use super::file::read_file;
+
 #[derive(Debug, Clone, PartialEq)]
 enum Play {
     Rock = 0,
@@ -26,6 +28,10 @@ impl Play {
         }
     }
 
+    /// The rules of rock-paper-scissors
+    /// ```
+    /// assert!(Play::Paper.beats(&Play::Rock));
+    /// ```
     fn beats(&self, other: &Play) -> bool {
         match *self {
             Play::Rock => match other {
@@ -162,20 +168,14 @@ C Z";
 
 #[allow(dead_code)]
 pub fn part1() {
-    let file_path = format!(
-        "src/{}/input.txt",
-        module_path!().split("::").last().unwrap()
-    )
-    .to_owned();
-    let path = Path::new(file_path.as_str());
-    let contents = fs::read_to_string(path).expect("Should have been able to read the file");
+    let contents = read_file(module_path!());
 
     println!("{}", score_rounds(parse_file(contents.as_str())))
 }
 
 #[allow(dead_code)]
 pub fn part2() {
-    let contents = super::read_file(module_path!());
+    let contents = read_file(module_path!());
 
     println!("{}", score_rounds(parse_file_2(contents.as_str())))
 }

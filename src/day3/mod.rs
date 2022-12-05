@@ -1,5 +1,7 @@
 use std::collections::HashSet;
 
+use crate::file::read_file;
+
 type Rucksack = (Vec<char>, Vec<char>);
 
 fn parse_file(text: &str) -> Vec<Rucksack> {
@@ -113,7 +115,7 @@ CrZsJsPPZsGzwwsLwLmpwMDw";
 
 #[allow(dead_code)]
 pub fn part1() {
-    let contents = super::read_file(module_path!());
+    let contents = read_file(module_path!());
 
     let rucksacks = parse_file(&contents);
     let overlaps: Vec<char> = find_overlaps(&rucksacks);
@@ -122,7 +124,7 @@ pub fn part1() {
 
 #[allow(dead_code)]
 pub fn part2() {
-    let contents = super::read_file(module_path!());
+    let contents = read_file(module_path!());
     let rucksacks = parse_file(&contents);
     let overlaps: Vec<char> = find_elf_overlaps(&rucksacks);
 
