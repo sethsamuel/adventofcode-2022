@@ -76,6 +76,7 @@ pub fn part1() {
     println!("{}", elf.total_weight);
 }
 
+#[allow(dead_code)]
 pub fn part2() {
     let path = Path::new("src/day1/input.txt");
     let contents = fs::read_to_string(path).expect("Should have been able to read the file");
