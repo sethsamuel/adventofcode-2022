@@ -53,6 +53,16 @@ enum Outcome {
     Lose,
     Draw,
 }
+impl From<&str> for Outcome {
+    fn from(f: &str) -> Self {
+        match f {
+            "X" => Outcome::Lose,
+            "Y" => Outcome::Draw,
+            "Z" => Outcome::Win,
+            _ => panic!("Unknown Outcome '{}'", f),
+        }
+    }
+}
 impl Outcome {
     fn value(&self) -> u8 {
         match *self {
@@ -100,6 +110,33 @@ fn parse_file(text: &str) -> Vec<Round> {
     rounds
 }
 
+fn parse_file_2(text: &str) -> Vec<Round> {
+    let round_lines = text.split("\n");
+    let rounds = round_lines
+        .map(|line| {
+            let plays: Vec<&str> = line.split(" ").collect();
+            let opponent: Play = plays.first().unwrap().to_owned().into();
+            let outcome: Outcome = plays.last().unwrap().to_owned().into();
+            let me: Play = match outcome {
+                Outcome::Win => match opponent {
+                    Play::Rock => Play::Paper,
+                    Play::Paper => Play::Scissors,
+                    Play::Scissors => Play::Rock,
+                },
+                Outcome::Lose => match opponent {
+                    Play::Rock => Play::Scissors,
+                    Play::Paper => Play::Rock,
+                    Play::Scissors => Play::Paper,
+                },
+                Outcome::Draw => opponent.clone(),
+            };
+            Round { opponent, me }
+        })
+        .collect();
+
+    rounds
+}
+
 fn score_rounds(rounds: Vec<Round>) -> u32 {
     rounds.iter().fold(0, |acc, r| acc + u32::from(r.score()))
 }
@@ -137,8 +174,6 @@ pub fn part1() {
     let contents = fs::read_to_string(path).expect("Should have been able to read the file");
 
     println!("{}", score_rounds(parse_file(contents.as_str())))
-    // let elf = find_highest_weight(&mut parse_file(contents.as_str()));
-    // println!("{}", elf.total_weight);
 }
 
 #[allow(dead_code)]
@@ -151,5 +186,5 @@ pub fn part2() {
     let path = Path::new(file_path.as_str());
     let contents = fs::read_to_string(path).expect("Should have been able to read the file");
 
-    // println!("{}", find_top_3_weight(&mut parse_file(contents.as_str())));
+    println!("{}", score_rounds(parse_file_2(contents.as_str())))
 }
