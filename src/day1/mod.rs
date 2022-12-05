@@ -11,6 +11,11 @@ fn find_highest_weight(elfs: &mut Vec<Elf>) -> Elf {
     elfs.last().unwrap().to_owned()
 }
 
+fn find_top_3_weight(elfs: &mut Vec<Elf>) -> u64 {
+    elfs.sort_by_key(|e| e.total_weight);
+    elfs.iter().rev().take(3).map(|e| e.total_weight).sum()
+}
+
 fn parse_file(text: &str) -> Vec<Elf> {
     let elf_lines = text.split("\n\n");
     let elfs = elf_lines
@@ -62,10 +67,18 @@ mod tests {
     }
 }
 
+#[allow(dead_code)]
 pub fn part1() {
     let path = Path::new("src/day1/input.txt");
     let contents = fs::read_to_string(path).expect("Should have been able to read the file");
 
     let elf = find_highest_weight(&mut parse_file(contents.as_str()));
     println!("{}", elf.total_weight);
+}
+
+pub fn part2() {
+    let path = Path::new("src/day1/input.txt");
+    let contents = fs::read_to_string(path).expect("Should have been able to read the file");
+
+    println!("{}", find_top_3_weight(&mut parse_file(contents.as_str())));
 }
