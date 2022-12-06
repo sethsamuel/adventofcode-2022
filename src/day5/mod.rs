@@ -101,6 +101,23 @@ fn execute_instructions(input: &mut Input) {
     });
 }
 
+fn execute_instructions_2(input: &mut Input) {
+    input.instructions.iter().for_each(|i| {
+        let stack = input.stacks.get_mut(i.from as usize - 1).unwrap();
+        let mut c = stack
+            .crates
+            .split_off(stack.crates.len() - i.quantity as usize);
+        input
+            .stacks
+            .get_mut(i.to as usize - 1)
+            .unwrap()
+            .crates
+            .append(&mut c);
+
+        print!("{:?}\n\n", input.stacks);
+    });
+}
+
 fn get_top_crates(input: Input) -> Vec<char> {
     input
         .stacks
@@ -149,6 +166,17 @@ move 1 from 1 to 2";
     }
 
     #[test]
+    fn test_execute_instructions_2() {
+        let mut input = parse_file(TEST_STR);
+        println!("{:?}", input.stacks);
+        execute_instructions_2(&mut input);
+        assert_eq!(input.stacks.first().unwrap().crates.len(), 1);
+        assert_eq!(input.stacks.get(1).unwrap().crates.len(), 1);
+        assert_eq!(input.stacks.get(2).unwrap().crates.len(), 4);
+        assert_eq!(input.stacks.get(2).unwrap().crates.last().unwrap().id, 'D');
+    }
+
+    #[test]
     fn test_get_top_crates() {
         let mut input = parse_file(TEST_STR);
         execute_instructions(&mut input);
@@ -167,5 +195,7 @@ pub fn part1() {
 #[allow(dead_code)]
 pub fn part2() {
     let contents = read_file(module_path!());
-    // println!("{}", overlap_elfs.len());
+    let mut input = parse_file(&contents);
+    execute_instructions_2(&mut input);
+    println!("{:?}", String::from_iter(get_top_crates(input).iter()));
 }
