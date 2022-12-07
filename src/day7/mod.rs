@@ -35,6 +35,7 @@ impl<'a> FileSystem<'a> {
         }
     }
 
+    #[allow(dead_code)]
     fn print(&self) {
         self.print_file(0, 0)
     }
