@@ -15,64 +15,89 @@ fn parse_file(text: &str) -> Forrest {
     forrest
 }
 
-fn is_offset_visible(row: usize, column: usize, vector: (isize, isize), forrest: &Forrest) -> bool {
-    is_visible(
-        (row as isize + vector.0) as usize,
-        (column as isize + vector.1) as usize,
-        Some(vector),
-        forrest,
-    )
+fn get_row(row: usize, forrest: &Forrest) -> Vec<u8> {
+    forrest[row].clone()
 }
 
-fn is_visible(
-    row: usize,
-    column: usize,
-    vector: Option<(isize, isize)>,
-    forrest: &Forrest,
-) -> bool {
-    // println!("is visible? {} {}", row, column);
-    if row == 0 || column == 0 {
-        // println!("Edge");
-        return true;
-    }
-    if row == forrest.len() - 1 || column == forrest[row].len() - 1 {
-        // println!("Edge");
-        return true;
-    }
-    match vector {
-        Some((r, c)) => {
-            is_offset_visible(row, column, (r, c), forrest)
-                && forrest[row][column]
-                    >= forrest[(row as isize + r) as usize][(column as isize + c) as usize]
-        }
-        _ => {
-            (is_offset_visible(row, column, (-1, 0), forrest)
-                && forrest[row][column]
-                    > forrest[(row as isize + (-1)) as usize][(column as isize + (0)) as usize])
-                || (is_offset_visible(row, column, (1, 0), forrest)
-                    && forrest[row][column]
-                        > forrest[(row as isize + (1)) as usize][(column as isize + (0)) as usize])
-                || (is_offset_visible(row, column, (0, -1), forrest)
-                    && forrest[row][column]
-                        > forrest[(row as isize + (0)) as usize][(column as isize + (-1)) as usize])
-                || (is_offset_visible(row, column, (0, 1), forrest)
-                    && forrest[row][column]
-                        > forrest[(row as isize + (0)) as usize][(column as isize + (1)) as usize])
-        }
-    }
+fn get_column(column: usize, forrest: &Forrest) -> Vec<u8> {
+    forrest.iter().map(|r| r[column]).collect()
+}
+
+fn is_visible(row: usize, column: usize, forrest: &Forrest) -> bool {
+    let forrest_row = get_row(row, forrest);
+    let forrest_column = get_column(column, forrest);
+    let tree = forrest[row][column];
+    forrest_row[0..column].iter().max().lt(&Some(&tree))
+        || forrest_row[column + 1..].iter().max().lt(&Some(&tree))
+        || forrest_column[0..row].iter().max().lt(&Some(&tree))
+        || forrest_column[row + 1..].iter().max().lt(&Some(&tree))
 }
 
 fn count_visible_trees(forrest: &Forrest) -> usize {
     let mut visible_count = 0;
     for row in 0..forrest.len() {
         for column in 0..forrest[row].len() {
-            if is_visible(row, column, None, forrest) {
+            if is_visible(row, column, forrest) {
                 // println!("visible {} {}", row, column);
                 visible_count += 1;
             }
         }
     }
     visible_count
+}
+
+fn get_scenic_score(row: usize, column: usize, forrest: &Forrest) -> usize {
+    let tree = forrest[row][column];
+    let forrest_row = get_row(row, forrest);
+    let forrest_column = get_column(column, forrest);
+
+    let mut left: usize = 0;
+    for i in 1..=column {
+        left += 1;
+        if forrest_row[column - i] >= tree {
+            break;
+        }
+    }
+
+    let mut right: usize = 0;
+    for i in (column + 1)..forrest_row.len() {
+        right += 1;
+        if forrest_row[i] >= tree {
+            break;
+        }
+    }
+
+    let mut up: usize = 0;
+    for i in 1..=row {
+        up += 1;
+        if forrest_column[row - i] >= tree {
+            break;
+        }
+    }
+
+    let mut down: usize = 0;
+    for i in (row + 1)..forrest_column.len() {
+        down += 1;
+        if forrest_column[i] >= tree {
+            break;
+        }
+    }
+
+    left * right * up * down
+}
+
+fn get_most_scenic(forrest: &Forrest) -> usize {
+    let mut max = 0;
+    for row in 0..forrest.len() {
+        for column in 0..forrest[row].len() {
+            let score = get_scenic_score(row, column, forrest);
+            if score > max {
+                max = score;
+            }
+        }
+    }
+
+    max
 }
 
 #[cfg(test)]
@@ -95,13 +120,14 @@ mod tests {
     #[test]
     fn test_is_visible() {
         let forrest = parse_file(TEST_STR);
-        assert!(is_visible(0, 0, None, &forrest));
-        assert!(is_visible(0, 3, None, &forrest));
-        assert!(is_visible(0, 4, None, &forrest));
-        assert!(!is_visible(1, 3, None, &forrest));
-        assert!(is_visible(2, 3, None, &forrest));
-        assert!(is_visible(1, 1, None, &forrest));
-        assert!(is_visible(4, 2, None, &forrest));
+        assert!(is_visible(0, 0, &forrest));
+        assert!(is_visible(0, 3, &forrest));
+        assert!(is_visible(0, 4, &forrest));
+        assert!(!is_visible(1, 3, &forrest));
+        assert!(is_visible(2, 3, &forrest));
+        assert!(is_visible(1, 1, &forrest));
+        assert!(is_visible(4, 2, &forrest));
+        assert!(is_visible(4, 4, &forrest));
     }
 
     #[test]
@@ -109,13 +135,25 @@ mod tests {
         let forrest = parse_file(TEST_STR);
         assert_eq!(count_visible_trees(&forrest), 21);
     }
+
+    #[test]
+    fn test_get_scenic_score() {
+        let forrest = parse_file(TEST_STR);
+        assert_eq!(get_scenic_score(1, 2, &forrest), 4);
+        assert_eq!(get_scenic_score(3, 2, &forrest), 8);
+    }
+
+    #[test]
+    fn test_get_most_scenic() {
+        let forrest = parse_file(TEST_STR);
+        assert_eq!(get_most_scenic(&forrest), 8);
+    }
 }
 
 #[allow(dead_code)]
 pub fn part1() {
     let contents = read_file(module_path!());
     let forrest = parse_file(&contents);
-    // let large = get_large_directories(&files);
 
     println!("{:?}", count_visible_trees(&forrest));
 }
@@ -123,7 +161,7 @@ pub fn part1() {
 #[allow(dead_code)]
 pub fn part2() {
     let contents = read_file(module_path!());
-    let files = parse_file(&contents);
-    // let dir = get_smallest_deletable_directory(&files);
-    // println!("{:?}", dir);
+    let forrest = parse_file(&contents);
+
+    println!("{:?}", get_most_scenic(&forrest));
 }
