@@ -45,8 +45,6 @@ fn get_shortest_walk(grid: &Vec<Vec<u8>>, start: (usize, usize), end: (usize, us
         let current_value = grid[current.0][current.1];
         let current_distance = distances[current.0][current.1];
 
-        // println!("{:?} {} {}", current, current_value, current_distance);
-
         for vector in vec![(-1, 0), (1, 0), (0, -1), (0, 1)] {
             let coords: (usize, usize) = (
                 (current.0 as isize + vector.0) as usize,
@@ -71,13 +69,30 @@ fn get_shortest_walk(grid: &Vec<Vec<u8>>, start: (usize, usize), end: (usize, us
     //         d.iter()
     //             .map(|d| match *d {
     //                 usize::MAX => "X".to_string(),
-    //                 _ => d.to_string(),
+    //                 _ => format!(" {:0>2} ", d.to_string()),
     //             })
     //             .collect::<String>()
     //     );
     // }
 
     distances[end.0][end.1]
+}
+
+fn get_shortest_trailhead(grid: &Vec<Vec<u8>>, end: (usize, usize)) -> usize {
+    let mut shortest_distance = usize::MAX;
+    for row in 0..grid.len() {
+        for col in 0..grid[row].len() {
+            if grid[row][col] == 1 {
+                let distance = get_shortest_walk(grid, (row, col), end);
+                // println!("{:?} {}", (row, col), distance);
+                if distance < shortest_distance {
+                    // println!("{:?}", (row, col));
+                    shortest_distance = distance;
+                }
+            }
+        }
+    }
+    shortest_distance
 }
 
 #[cfg(test)]
@@ -103,8 +118,14 @@ abdefghi";
     #[test]
     fn test_get_shortest_walk() {
         let (grid, start, end) = parse_file(TEST_STR);
-
         assert_eq!(get_shortest_walk(&grid, start, end), 31);
+    }
+
+    #[test]
+    fn test_get_shortest_trailhead() {
+        let (grid, start, end) = parse_file(TEST_STR);
+
+        assert_eq!(get_shortest_trailhead(&grid, end), 29);
     }
 }
 
@@ -112,9 +133,6 @@ abdefghi";
 pub fn part1() {
     let contents = read_file(module_path!());
     let (grid, start, end) = parse_file(&contents);
-    let mut walked = (0..grid.len())
-        .map(|i| (0..grid[i].len()).map(|_| false).collect::<Vec<bool>>())
-        .collect::<Vec<Vec<bool>>>();
     let walk = get_shortest_walk(&grid, start, end);
 
     println!("{}", walk);
@@ -123,7 +141,8 @@ pub fn part1() {
 #[allow(dead_code)]
 pub fn part2() {
     let contents = read_file(module_path!());
-    // let mut monkeys = parse_file(&contents);
-    // let mb = get_more_monkey_business(&mut monkeys);
-    // println!("{}", mb);
+    let (grid, _start, end) = parse_file(&contents);
+    let start = get_shortest_trailhead(&grid, end);
+
+    println!("{}", start);
 }
