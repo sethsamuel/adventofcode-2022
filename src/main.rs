@@ -12,5 +12,5 @@ mod day9;
 mod file;
 
 fn main() {
-    day11::part1();
+    day11::part2();
 }

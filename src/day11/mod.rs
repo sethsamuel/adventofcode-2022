@@ -158,6 +158,43 @@ fn get_monkey_business(monkeys: &mut Vec<Monkey>) -> usize {
     monkeys[0].inspections * monkeys[1].inspections
 }
 
+fn get_more_monkey_business(monkeys: &mut Vec<Monkey>) -> usize {
+    let gcd: usize = monkeys.iter().map(|m| m.divisor).product();
+    for _ in 0..10_000 {
+        for m in 0..monkeys.len() {
+            let monkey = &mut monkeys[m];
+            let mut items = Vec::new();
+
+            while monkey.items.len() > 0 {
+                let mut item = monkey.items.remove(0);
+                match monkey.operation.operand {
+                    Operand::Mult => item.mul_assign(match monkey.operation.rhs {
+                        Argument::Constant(c) => c,
+                        Argument::Old => item.clone(),
+                    }),
+                    Operand::Add => item.add_assign(match monkey.operation.rhs {
+                        Argument::Constant(c) => c,
+                        Argument::Old => item.clone(),
+                    }),
+                }
+
+                if item.rem(monkey.divisor) == 0 {
+                    items.push((monkey.true_target, item));
+                } else {
+                    items.push((monkey.false_target, item));
+                }
+            }
+            monkey.items.truncate(0);
+            monkey.inspections += items.len();
+            for item in items {
+                monkeys[item.0].items.push(item.1 % gcd);
+            }
+        }
+    }
+    monkeys.sort_by(|a, b| a.inspections.partial_cmp(&b.inspections).unwrap().reverse());
+    monkeys[0].inspections * monkeys[1].inspections
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -207,6 +244,13 @@ Test: divisible by 17
         let mb = get_monkey_business(&mut monkeys);
         assert_eq!(mb, 10605);
     }
+
+    #[test]
+    fn test_get_more_monkey_business() {
+        let mut monkeys = parse_file(TEST_STR);
+        let mb = get_more_monkey_business(&mut monkeys);
+        assert_eq!(mb, 2713310158);
+    }
 }
 
 #[allow(dead_code)]
@@ -220,4 +264,7 @@ pub fn part1() {
 #[allow(dead_code)]
 pub fn part2() {
     let contents = read_file(module_path!());
+    let mut monkeys = parse_file(&contents);
+    let mb = get_more_monkey_business(&mut monkeys);
+    println!("{}", mb);
 }
