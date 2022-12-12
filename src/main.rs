@@ -1,4 +1,5 @@
 mod day1;
+mod day10;
 mod day2;
 mod day3;
 mod day4;
@@ -10,5 +11,5 @@ mod day9;
 mod file;
 
 fn main() {
-    day9::part2();
+    day10::part1();
 }
