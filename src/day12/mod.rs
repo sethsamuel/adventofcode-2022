@@ -1,3 +1,5 @@
+use std::vec;
+
 use crate::file::read_file;
 
 fn parse_file(text: &str) -> (Vec<Vec<u8>>, (usize, usize), (usize, usize)) {
@@ -12,11 +14,11 @@ fn parse_file(text: &str) -> (Vec<Vec<u8>>, (usize, usize), (usize, usize)) {
                 .map(|(x, c)| {
                     if c == 'S' {
                         start = (y, x);
-                        return 0;
+                        return 1;
                     }
                     if c == 'E' {
                         end = (y, x);
-                        return 25;
+                        return 26;
                     }
                     c as u8 - 96
                 })
@@ -28,7 +30,54 @@ fn parse_file(text: &str) -> (Vec<Vec<u8>>, (usize, usize), (usize, usize)) {
 }
 
 fn get_shortest_walk(grid: &Vec<Vec<u8>>, start: (usize, usize), end: (usize, usize)) -> usize {
-    0
+    let mut distances = (0..grid.len())
+        .map(|i| {
+            (0..grid[i].len())
+                .map(|_| usize::MAX)
+                .collect::<Vec<usize>>()
+        })
+        .collect::<Vec<Vec<usize>>>();
+
+    distances[start.0][start.1] = 0;
+
+    let mut queue: Vec<(usize, usize)> = vec![start];
+    while let Some(current) = queue.pop() {
+        let current_value = grid[current.0][current.1];
+        let current_distance = distances[current.0][current.1];
+
+        // println!("{:?} {} {}", current, current_value, current_distance);
+
+        for vector in vec![(-1, 0), (1, 0), (0, -1), (0, 1)] {
+            let coords: (usize, usize) = (
+                (current.0 as isize + vector.0) as usize,
+                (current.1 as isize + vector.1) as usize,
+            );
+            if (0..grid.len()).contains(&(coords.0))
+                && (0..grid[current.0].len()).contains(&(coords.1))
+            {
+                let value = grid[coords.0][coords.1];
+                let distance = distances[coords.0][coords.1];
+                if value <= current_value + 1 && (distance > current_distance + 1) {
+                    distances[coords.0][coords.1] = current_distance + 1;
+                    queue.push((coords.0, coords.1));
+                }
+            }
+        }
+    }
+
+    // for d in distances.clone() {
+    //     println!(
+    //         "{}",
+    //         d.iter()
+    //             .map(|d| match *d {
+    //                 usize::MAX => "X".to_string(),
+    //                 _ => d.to_string(),
+    //             })
+    //             .collect::<String>()
+    //     );
+    // }
+
+    distances[end.0][end.1]
 }
 
 #[cfg(test)]
@@ -48,11 +97,13 @@ abdefghi";
         assert_eq!(end, (2, 5));
         assert_eq!(grid[0][2], 2);
         assert_eq!(grid[3][2], 3);
+        assert_eq!(grid[2][5], 26);
     }
 
     #[test]
     fn test_get_shortest_walk() {
         let (grid, start, end) = parse_file(TEST_STR);
+
         assert_eq!(get_shortest_walk(&grid, start, end), 31);
     }
 }
@@ -60,9 +111,13 @@ abdefghi";
 #[allow(dead_code)]
 pub fn part1() {
     let contents = read_file(module_path!());
-    // let mut monkeys = parse_file(&contents);
-    // let mb = get_monkey_business(&mut monkeys);
-    // println!("{}", mb);
+    let (grid, start, end) = parse_file(&contents);
+    let mut walked = (0..grid.len())
+        .map(|i| (0..grid[i].len()).map(|_| false).collect::<Vec<bool>>())
+        .collect::<Vec<Vec<bool>>>();
+    let walk = get_shortest_walk(&grid, start, end);
+
+    println!("{}", walk);
 }
 
 #[allow(dead_code)]
