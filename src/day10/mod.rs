@@ -68,6 +68,40 @@ fn execute(instructions: &Vec<Instruction>) -> Vec<i32> {
     signals
 }
 
+type Screen = Vec<Vec<bool>>;
+
+fn set_pixel(cycle: usize, register: i32, screen: &mut Screen) {
+    let line = (cycle - 1) / screen[0].len();
+    let pixel = (cycle - 1) % screen[0].len();
+
+    screen[line][pixel] = (register - pixel as i32).abs() <= 1;
+}
+
+fn draw(instructions: &Vec<Instruction>) -> Screen {
+    let mut cycle: usize = 0;
+    let mut register: i32 = 1;
+
+    let mut screen: Screen = (0..6).map(|_| (0..40).map(|_| false).collect()).collect();
+
+    for instr in instructions.iter() {
+        match instr.command {
+            Command::Add => {
+                cycle += 1;
+                set_pixel(cycle, register, &mut screen);
+                cycle += 1;
+                set_pixel(cycle, register, &mut screen);
+                register += instr.argument.unwrap_or(0);
+            }
+            Command::Noop => {
+                cycle += 1;
+                set_pixel(cycle, register, &mut screen);
+            }
+        }
+    }
+
+    screen
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -234,6 +268,20 @@ noop";
         assert_eq!(signals[0], 420);
         assert_eq!(signals[5], 3960);
     }
+
+    #[test]
+    fn test_draw() {
+        let instructions = parse_file(TEST_STR);
+        let screen = draw(&instructions);
+        for line in screen {
+            println!(
+                "{}",
+                line.iter()
+                    .map(|p| if *p { '#' } else { '.' })
+                    .collect::<String>()
+            )
+        }
+    }
 }
 
 #[allow(dead_code)]
@@ -250,5 +298,13 @@ pub fn part2() {
     let contents = read_file(module_path!());
     let instructions = parse_file(&contents);
 
-    // println!("{:?}", count_long_tail_positions(&instructions));
+    let screen = draw(&instructions);
+    for line in screen {
+        println!(
+            "{}",
+            line.iter()
+                .map(|p| if *p { '#' } else { '.' })
+                .collect::<String>()
+        )
+    }
 }
