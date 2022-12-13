@@ -123,7 +123,7 @@ abdefghi";
 
     #[test]
     fn test_get_shortest_trailhead() {
-        let (grid, start, end) = parse_file(TEST_STR);
+        let (grid, _start, end) = parse_file(TEST_STR);
 
         assert_eq!(get_shortest_trailhead(&grid, end), 29);
     }
