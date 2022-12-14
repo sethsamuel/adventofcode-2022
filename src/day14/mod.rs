@@ -45,6 +45,23 @@ fn parse_file(text: &str) -> Grid {
     grid
 }
 
+fn add_floor(grid: &mut Grid) -> &Grid {
+    let mut max_y = 0;
+    for x in 0..grid.len() {
+        for y in 0..grid[x].len() {
+            if grid[x][y] == PathState::Rock && y > max_y {
+                max_y = y;
+            }
+        }
+    }
+
+    for x in 0..grid.len() {
+        grid[x][max_y + 2] = PathState::Rock
+    }
+
+    grid
+}
+
 fn move_sand(grid: &Grid, sand: (usize, usize)) -> Option<(usize, usize)> {
     if sand.1 >= grid[sand.0].len() - 1 {
         return None;
@@ -71,8 +88,11 @@ fn drop_sand(grid: &mut Grid) -> usize {
             Some(sand) => {
                 if sand == current_sand {
                     grid[sand.0][sand.1] = PathState::Sand;
-                    current_sand = (500, 0);
                     sand_count += 1;
+                    if current_sand == (500, 0) {
+                        return sand_count;
+                    }
+                    current_sand = (500, 0);
                 } else {
                     current_sand = sand;
                 }
@@ -103,6 +123,13 @@ mod tests {
         let mut grid = parse_file(TEST_STR);
         assert_eq!(drop_sand(&mut grid), 24);
     }
+
+    #[test]
+    fn test_drop_sand_to_floor() {
+        let mut grid = parse_file(TEST_STR);
+        add_floor(&mut grid);
+        assert_eq!(drop_sand(&mut grid), 93);
+    }
 }
 
 #[allow(dead_code)]
@@ -115,6 +142,7 @@ pub fn part1() {
 #[allow(dead_code)]
 pub fn part2() {
     let contents = read_file(module_path!());
-    // let pairs = parse_file(&contents);
-    // println!("{}", get_decoder_key(&pairs));
+    let mut grid = parse_file(&contents);
+    add_floor(&mut grid);
+    println!("{}", drop_sand(&mut grid));
 }
