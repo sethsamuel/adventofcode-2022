@@ -1,4 +1,4 @@
-use std::{borrow::BorrowMut, cmp::Ordering, ops::DerefMut};
+use std::cmp::Ordering;
 
 use crate::file::read_file;
 #[derive(Debug, Clone)]
@@ -38,7 +38,7 @@ impl PartialOrd for Array {
             Some(l) => match other.number {
                 Some(r) => l.partial_cmp(&r),
                 None => match other.items.clone() {
-                    Some(r_items) => Array::from(vec![l]).partial_cmp(other),
+                    Some(_) => Array::from(vec![l]).partial_cmp(other),
                     None => Some(Ordering::Greater),
                 },
             },
