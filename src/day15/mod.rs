@@ -1,3 +1,5 @@
+use indicatif::ProgressBar;
+use rayon::prelude::*;
 use std::collections::HashMap;
 
 use regex::Regex;
@@ -8,22 +10,30 @@ use crate::file::read_file;
 enum GridState {
     Sensor,
     Beacon,
-    NoBeacon,
 }
 
 #[derive(Debug)]
 struct Sensor {
     x: isize,
     y: isize,
-    beacon_x: isize,
-    beacon_y: isize,
     range: usize,
 }
 
 impl Sensor {
+    fn distance(&self, x: isize, y: isize) -> usize {
+        self.x.abs_diff(x) + self.y.abs_diff(y)
+    }
+
     fn is_in_range(&self, x: isize, y: isize) -> bool {
-        let distance = self.x.abs_diff(x) + self.y.abs_diff(y);
+        let distance = self.distance(x, y);
         distance <= self.range
+    }
+
+    fn get_distance(&self, x: isize, y: isize) -> Option<(isize, isize)> {
+        match self.is_in_range(x, y) {
+            true => Some((self.x - x, self.y - y)),
+            false => None,
+        }
     }
 }
 
@@ -77,8 +87,6 @@ fn parse_file(text: &str) -> (Grid, Vec<Sensor>) {
         sensors.push(Sensor {
             x: sensor.0,
             y: sensor.1,
-            beacon_x: beacon.0,
-            beacon_y: beacon.1,
             range: beacon.0.abs_diff(sensor.0) + beacon.1.abs_diff(sensor.1),
         })
     });
@@ -86,35 +94,9 @@ fn parse_file(text: &str) -> (Grid, Vec<Sensor>) {
     (grid, sensors)
 }
 
-fn eliminate_squares(grid: &mut Grid, sensors: &Vec<Sensor>) {
-    for sensor in sensors {
-        let distance =
-            (sensor.x.abs_diff(sensor.beacon_x) + sensor.y.abs_diff(sensor.beacon_y)) as isize;
-        println!("Filling sensor {:?} {}", sensor, distance);
-        for x in (sensor.x - distance)..=(sensor.x + distance) {
-            // println!("x {}", x);
-            for y in (sensor.y - (distance - sensor.x.abs_diff(x) as isize))
-                ..=(sensor.y + (distance - sensor.x.abs_diff(x) as isize))
-            {
-                match grid.get(&x).and_then(|c| c.get(&y)) {
-                    None => grid_set(grid, x, y, GridState::NoBeacon),
-                    _ => (),
-                }
-            }
-        }
-    }
-}
-
 fn count_eliminated(grid: &mut Grid, sensors: &Vec<Sensor>, y: isize) -> usize {
-    // eliminate_squares(grid, sensors);
     let mut count = 0;
-    // for col in grid.values() {
-    //     match col.get(&y) {
-    //         Some(GridState::NoBeacon) => count += 1,
-    //         _ => (),
-    //     }
-    // }
-    for x in -10_000_000..10_000_000 {
+    for x in -1_000_000..1_000_000 {
         if grid.get(&x).and_then(|c| c.get(&y)) == None {
             match sensors.iter().find(|s| s.is_in_range(x, y)) {
                 Some(_) => count += 1,
@@ -124,6 +106,84 @@ fn count_eliminated(grid: &mut Grid, sensors: &Vec<Sensor>, y: isize) -> usize {
     }
 
     count
+}
+
+fn find_beacon(
+    grid: &Grid,
+    sensors: &Vec<Sensor>,
+    max_x: isize,
+    max_y: isize,
+) -> Option<(isize, isize)> {
+    let bar = ProgressBar::new(max_x as u64);
+    let beacon = (0..=max_x)
+        .par_bridge()
+        .map(|x| {
+            // for x in max_x / 2..=max_x {
+            bar.set_position(x as u64);
+            // let y_bar = ProgressBar::new(max_y as u64);
+            let mut y = 0;
+            while y <= max_y {
+                // y_bar.set_position(y as u64);
+                if grid.get(&x).and_then(|c| c.get(&y)) == None {
+                    match sensors
+                        .iter()
+                        .map(|s| s.get_distance(x, y).and_then(|d| Some(d.1)))
+                        .max()
+                    {
+                        Some(distance) => {
+                            match distance {
+                                Some(distance) => y += (distance * 2).max(1) as isize,
+                                None => return Some((x, y)),
+                            }
+                            // let distance = s.get_distance(x, y).unwrap_or((0, 0)).1;
+                        }
+                        None => return Some((x, y)),
+                    }
+                } else {
+                    y += 1
+                }
+            }
+            return None;
+            // y_bar.finish_and_clear();
+        })
+        .find_first(|b| b.is_some())
+        .unwrap();
+    bar.finish();
+    beacon
+}
+
+fn find_beacon_2(
+    grid: &Grid,
+    sensors: &Vec<Sensor>,
+    max_x: isize,
+    max_y: isize,
+) -> Option<(isize, isize)> {
+    for sensor in sensors {
+        for x in (-1 * sensor.range as isize - 1)..=(sensor.range as isize + 1) {
+            for y in [-1, 1] {
+                let x_y = (
+                    sensor.x + x,
+                    sensor.y + y * ((sensor.range as isize + 1).abs_diff(x) as isize),
+                );
+                if (0..=max_x).contains(&x_y.0)
+                    && (0..=max_y).contains(&x_y.1)
+                    && grid.get(&x_y.0).and_then(|c| c.get(&x_y.1)) == None
+                {
+                    match sensors.iter().find(|s| s.is_in_range(x_y.0, x_y.1)) {
+                        Some(_) => (),
+                        None => return Some(x_y),
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+fn find_tuning(grid: &Grid, sensors: &Vec<Sensor>, max_x: isize, max_y: isize) -> Option<isize> {
+    if let Some(beacon) = find_beacon_2(grid, sensors, max_x, max_y) {
+        return Some(beacon.0 * 4000000 + beacon.1);
+    }
+    None
 }
 
 #[cfg(test)]
@@ -153,23 +213,18 @@ Sensor at x=20, y=1: closest beacon is at x=15, y=3";
         assert_eq!(grid[&21][&22], GridState::Beacon);
         assert_eq!(sensors[3].x, 12);
         assert_eq!(sensors[3].y, 14);
-        assert_eq!(sensors[3].beacon_x, 10);
-        assert_eq!(sensors[3].beacon_y, 16);
-        assert_eq!(sensors[0].beacon_x, -2);
-    }
-
-    #[test]
-    fn test_eliminate_squares() {
-        let (mut grid, sensors) = parse_file(TEST_STR);
-        eliminate_squares(&mut grid, &sensors);
-        assert_eq!(grid[&6][&0], GridState::NoBeacon);
-        assert_eq!(grid[&15][&7], GridState::NoBeacon);
     }
 
     #[test]
     fn test_count_eliminated() {
         let (mut grid, sensors) = parse_file(TEST_STR);
         assert_eq!(count_eliminated(&mut grid, &sensors, 10), 26);
+    }
+
+    #[test]
+    fn test_find_tuning() {
+        let (grid, sensors) = parse_file(TEST_STR);
+        assert_eq!(find_tuning(&grid, &sensors, 20, 20), Some(56000011));
     }
 }
 
@@ -182,8 +237,10 @@ pub fn part1() {
 
 #[allow(dead_code)]
 pub fn part2() {
-    // let contents = read_file(module_path!());
-    // let (mut grid, sensors) = parse_file(&contents);
-    // add_floor(&mut grid);
-    // println!("{}", drop_sand(&mut grid));
+    let contents = read_file(module_path!());
+    let (mut grid, sensors) = parse_file(&contents);
+    println!(
+        "{}",
+        find_tuning(&mut grid, &sensors, 4_000_000, 4_000_000).unwrap()
+    );
 }
