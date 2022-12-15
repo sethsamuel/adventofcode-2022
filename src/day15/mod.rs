@@ -1,5 +1,3 @@
-use indicatif::ProgressBar;
-use rayon::prelude::*;
 use std::collections::HashMap;
 
 use regex::Regex;
@@ -27,13 +25,6 @@ impl Sensor {
     fn is_in_range(&self, x: isize, y: isize) -> bool {
         let distance = self.distance(x, y);
         distance <= self.range
-    }
-
-    fn get_distance(&self, x: isize, y: isize) -> Option<(isize, isize)> {
-        match self.is_in_range(x, y) {
-            true => Some((self.x - x, self.y - y)),
-            false => None,
-        }
     }
 }
 
@@ -114,50 +105,6 @@ fn find_beacon(
     max_x: isize,
     max_y: isize,
 ) -> Option<(isize, isize)> {
-    let bar = ProgressBar::new(max_x as u64);
-    let beacon = (0..=max_x)
-        .par_bridge()
-        .map(|x| {
-            // for x in max_x / 2..=max_x {
-            bar.set_position(x as u64);
-            // let y_bar = ProgressBar::new(max_y as u64);
-            let mut y = 0;
-            while y <= max_y {
-                // y_bar.set_position(y as u64);
-                if grid.get(&x).and_then(|c| c.get(&y)) == None {
-                    match sensors
-                        .iter()
-                        .map(|s| s.get_distance(x, y).and_then(|d| Some(d.1)))
-                        .max()
-                    {
-                        Some(distance) => {
-                            match distance {
-                                Some(distance) => y += (distance * 2).max(1) as isize,
-                                None => return Some((x, y)),
-                            }
-                            // let distance = s.get_distance(x, y).unwrap_or((0, 0)).1;
-                        }
-                        None => return Some((x, y)),
-                    }
-                } else {
-                    y += 1
-                }
-            }
-            return None;
-            // y_bar.finish_and_clear();
-        })
-        .find_first(|b| b.is_some())
-        .unwrap();
-    bar.finish();
-    beacon
-}
-
-fn find_beacon_2(
-    grid: &Grid,
-    sensors: &Vec<Sensor>,
-    max_x: isize,
-    max_y: isize,
-) -> Option<(isize, isize)> {
     for sensor in sensors {
         for x in (-1 * sensor.range as isize - 1)..=(sensor.range as isize + 1) {
             for y in [-1, 1] {
@@ -180,7 +127,7 @@ fn find_beacon_2(
     None
 }
 fn find_tuning(grid: &Grid, sensors: &Vec<Sensor>, max_x: isize, max_y: isize) -> Option<isize> {
-    if let Some(beacon) = find_beacon_2(grid, sensors, max_x, max_y) {
+    if let Some(beacon) = find_beacon(grid, sensors, max_x, max_y) {
         return Some(beacon.0 * 4000000 + beacon.1);
     }
     None
