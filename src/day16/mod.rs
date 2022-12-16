@@ -7,16 +7,39 @@ use regex::Regex;
 struct Valve<'a> {
     id: &'a str,
     paths: HashSet<&'a str>,
+    is_open: bool,
+    rate: usize,
 }
 
 #[derive(Debug, Default)]
 struct ValveGraph<'a> {
     valves: HashMap<&'a str, Valve<'a>>,
+    pressure_released: usize,
+    minutes_left: u8,
+    current_valve: &'a str,
 }
 
 impl<'a> ValveGraph<'a> {
     fn add_valve(&mut self, valve: Valve<'a>) {
         self.valves.insert(valve.id, valve);
+    }
+
+    fn tick(&mut self) {
+        self.valves
+            .values()
+            .filter(|v| v.is_open)
+            .for_each(|v| self.pressure_released += v.rate);
+
+        self.minutes_left -= 1
+    }
+
+    fn execute(&mut self) -> usize {
+        self.current_valve = "AA";
+        while self.minutes_left > 0 {
+            self.tick()
+        }
+
+        self.pressure_released
     }
 }
 
@@ -32,6 +55,8 @@ fn parse_file(text: &str) -> ValveGraph {
         graph.add_valve(Valve {
             id: captures.name("valve").unwrap().as_str(),
             paths: HashSet::from_iter(outs),
+            is_open: false,
+            rate: captures.name("rate").unwrap().as_str().parse().unwrap(),
         });
     });
 
@@ -59,6 +84,12 @@ Valve JJ has flow rate=21; tunnel leads to valve II";
         assert_eq!(graph.valves.len(), 10);
         assert_eq!(graph.valves["GG"].paths.len(), 2);
         assert!(graph.valves["GG"].paths.contains("HH"));
+    }
+
+    #[test]
+    fn test_execute() {
+        let mut graph = parse_file(TEST_STR);
+        assert_eq!(graph.execute(), 0);
     }
 }
 
