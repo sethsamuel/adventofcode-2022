@@ -263,6 +263,8 @@ fn parse_file(text: &str) -> ValveGraph {
 
 #[cfg(test)]
 mod tests {
+    use rayon::prelude::IntoParallelIterator;
+
     use super::*;
 
     static TEST_STR: &str = "Valve AA has flow rate=0; tunnels lead to valves DD, II, BB
@@ -361,9 +363,20 @@ Valve JJ has flow rate=21; tunnel leads to valve II";
         );
         let permutations = graph.calculate_permutations();
         // println!("{:?}", permutations);
-        let outputs = permutations.iter().map(|p| graph.clone().execute(p));
+        let output: usize = permutations
+            .into_par_iter()
+            .fold(
+                || 0,
+                |mut acc, p| {
+                    let result = graph.clone().execute(&p);
+                    acc = result.max(acc);
+                    acc
+                },
+            )
+            .max()
+            .unwrap();
         // print!("{:?}", outputs);
-        assert_eq!(outputs.max().unwrap(), 1651);
+        assert_eq!(output, 1651);
     }
 }
 
@@ -380,52 +393,73 @@ pub fn part1() {
         .collect();
     // println!("{:?}", non_zero_valves);
     // let start = vec!["OM", "RO", "SP"];
-    let mut highest_result = 0;
 
-    for i in 1..=5 {
-        // for s in non_zero_valves.iter() {
-        // let start = vec!["OM", "VR", "RO"];
-        // let start = vec!["OM", "VR", "RO", "SP", "KZ", "DI", "SO"];
-        // let start = vec!["OM", "RO", "SP", "KZ", "DI", "SO", "SC"];
-        // let start = vec!["RO", "SP", "KZ", "DI", "SO", "OM"];
-        // let start = vec!["RO", "SP", "KZ", "DI", "SO", "SC", "PW", "IR", "OM", "RI"];
-        let start = vec!["SP", "KZ"];
-        // let start = vec![];
-        // let start = vec![*s];
-        let permutations = non_zero_valves
-            .iter()
-            .filter(|v| !start.contains(*v))
-            .permutations(i);
-
-        let bar = ProgressBar::new(360360 as u64);
-        for p in permutations {
-            bar.inc(1);
-            let mut end = p.iter().map(|s| **s).collect::<Vec<&str>>();
-
-            {
-                let mut path = start.clone();
-                path.append(&mut end.clone());
-                let result = graph.clone().execute(&path);
-
-                if result > highest_result {
-                    println!("{result}, {:?}", path);
-                    highest_result = result;
+    let permutations = non_zero_valves.iter().permutations(8);
+    let output: usize = permutations
+        .par_bridge()
+        .fold(
+            || 0,
+            |mut acc, p| {
+                let result = graph
+                    .clone()
+                    .execute(&p.iter().map(|s| **s).collect::<Vec<&str>>());
+                if result.max(acc) > acc {
+                    println!("{} {:?}", result, p)
                 }
-            }
-            {
-                let mut path = end.clone();
-                path.append(&mut start.clone());
-                let result = graph.clone().execute(&path);
+                acc = result.max(acc);
+                acc
+            },
+        )
+        .max()
+        .unwrap();
 
-                if result > highest_result {
-                    println!("{result}, {:?}", path);
-                    highest_result = result;
-                }
-            }
-            // result
-        }
-        bar.finish();
-    }
+    println!("{}", output);
+    // let mut highest_result = 0;
+
+    // for i in 1..=5 {
+    //     // for s in non_zero_valves.iter() {
+    //     // let start = vec!["OM", "VR", "RO"];
+    //     // let start = vec!["OM", "VR", "RO", "SP", "KZ", "DI", "SO"];
+    //     // let start = vec!["OM", "RO", "SP", "KZ", "DI", "SO", "SC"];
+    //     // let start = vec!["RO", "SP", "KZ", "DI", "SO", "OM"];
+    //     // let start = vec!["RO", "SP", "KZ", "DI", "SO", "SC", "PW", "IR", "OM", "RI"];
+    //     let start = vec!["SP", "KZ"];
+    //     // let start = vec![];
+    //     // let start = vec![*s];
+    //     let permutations = non_zero_valves
+    //         .iter()
+    //         .filter(|v| !start.contains(*v))
+    //         .permutations(i);
+
+    //     let bar = ProgressBar::new(360360 as u64);
+    //     for p in permutations {
+    //         bar.inc(1);
+    //         let mut end = p.iter().map(|s| **s).collect::<Vec<&str>>();
+
+    //         {
+    //             let mut path = start.clone();
+    //             path.append(&mut end.clone());
+    //             let result = graph.clone().execute(&path);
+
+    //             if result > highest_result {
+    //                 println!("{result}, {:?}", path);
+    //                 highest_result = result;
+    //             }
+    //         }
+    //         {
+    //             let mut path = end.clone();
+    //             path.append(&mut start.clone());
+    //             let result = graph.clone().execute(&path);
+
+    //             if result > highest_result {
+    //                 println!("{result}, {:?}", path);
+    //                 highest_result = result;
+    //             }
+    //         }
+    //         // result
+    //     }
+    //     bar.finish();
+    // }
     // }
     // println!("{}", outputs.max().unwrap());
 }

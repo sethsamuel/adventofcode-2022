@@ -15,6 +15,42 @@ enum Instruction {
     Left,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+enum Facing {
+    North,
+    South,
+    East,
+    West,
+}
+
+impl Facing {
+    fn value(&self) -> usize {
+        match self {
+            Facing::North => 3,
+            Facing::South => 1,
+            Facing::East => 0,
+            Facing::West => 2,
+        }
+    }
+    fn turn(&self, direction: &Instruction) -> Facing {
+        match direction {
+            Instruction::Move(_) => self.clone(),
+            Instruction::Right => match self {
+                Facing::North => Facing::East,
+                Facing::South => Facing::West,
+                Facing::East => Facing::South,
+                Facing::West => Facing::North,
+            },
+            Instruction::Left => match self {
+                Facing::North => Facing::West,
+                Facing::South => Facing::East,
+                Facing::East => Facing::North,
+                Facing::West => Facing::South,
+            },
+        }
+    }
+}
+
 type Grid = Vec<Vec<GridState>>;
 
 fn parse_file(text: &str) -> (Grid, Vec<Instruction>) {
@@ -67,6 +103,94 @@ fn parse_file(text: &str) -> (Grid, Vec<Instruction>) {
     (grid, instructions)
 }
 
+fn get_next_position(grid: &Grid, position: &(usize, usize), facing: &Facing) -> (usize, usize) {
+    match facing {
+        Facing::North => {
+            if position.0 == 0
+                || position.1 > grid[position.0 - 1].len() - 1
+                || grid[position.0 - 1][position.1] == GridState::Void
+            {
+                let valid_position = grid
+                    .iter()
+                    .rev()
+                    .enumerate()
+                    .find(|(_, col)| {
+                        position.1 < col.len() - 1 && col[position.1] != GridState::Void
+                    })
+                    .unwrap();
+                (grid.len() - 1 - valid_position.0, position.1)
+            } else {
+                (position.0 - 1, position.1)
+            }
+        }
+        Facing::South => {
+            if position.0 == grid.len() - 1
+                || position.1 > grid[position.0 + 1].len() - 1
+                || grid[position.0 + 1][position.1] == GridState::Void
+            {
+                let valid_position = grid
+                    .iter()
+                    .enumerate()
+                    .find(|(_, col)| {
+                        position.1 < col.len() - 1 && col[position.1] != GridState::Void
+                    })
+                    .unwrap();
+                (valid_position.0, position.1)
+            } else {
+                (position.0 + 1, position.1)
+            }
+        }
+        Facing::East => {
+            if position.1 == grid[position.0].len() - 1
+                || grid[position.0][position.1 + 1] == GridState::Void
+            {
+                let valid_position = grid[position.0]
+                    .iter()
+                    .enumerate()
+                    .find(|(i, col)| **col != GridState::Void)
+                    .unwrap();
+                (position.0, valid_position.0)
+            } else {
+                (position.0, position.1 + 1)
+            }
+        }
+        Facing::West => {
+            if position.1 == 0 || grid[position.0][position.1 - 1] == GridState::Void {
+                let valid_position = grid[position.0]
+                    .iter()
+                    .rev()
+                    .enumerate()
+                    .find(|(i, col)| **col != GridState::Void)
+                    .unwrap();
+                (position.0, grid[position.0].len() - 1 - valid_position.0)
+            } else {
+                (position.0, position.1 - 1)
+            }
+        }
+    }
+}
+
+fn execute(grid: &Grid, instructions: &Vec<Instruction>) -> ((usize, usize), Facing) {
+    let mut facing = Facing::East;
+    let mut position = (0, 0);
+    for instruction in instructions.iter() {
+        match instruction {
+            Instruction::Move(d) => {
+                for _ in 0..*d {
+                    let next_position = get_next_position(grid, &position, &facing);
+                    match grid[next_position.0][next_position.1] {
+                        GridState::Void => panic!("Ran into void!"),
+                        GridState::Path => position = next_position,
+                        GridState::Wall => break,
+                    }
+                }
+            }
+            _ => facing = facing.turn(instruction),
+        }
+    }
+    (position, facing)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -97,13 +221,40 @@ mod tests {
         assert_eq!(instructions[2], Instruction::Move(5));
         assert_eq!(*instructions.last().unwrap(), Instruction::Move(5));
     }
+
+    #[test]
+    fn test_get_next_position() {
+        let (grid, _) = parse_file(TEST_STR);
+        assert_eq!(get_next_position(&grid, &(0, 8), &Facing::East), (0, 9));
+        assert_eq!(get_next_position(&grid, &(0, 8), &Facing::West), (0, 11));
+        assert_eq!(get_next_position(&grid, &(0, 8), &Facing::South), (1, 8));
+        assert_eq!(get_next_position(&grid, &(0, 8), &Facing::North), (11, 8));
+    }
+
+    #[test]
+    fn test_execute() {
+        let (grid, instructions) = parse_file(TEST_STR);
+        let (position, facing) = execute(&grid, &instructions);
+        assert_eq!(position.0, 5);
+        assert_eq!(position.1, 7);
+        assert_eq!(facing, Facing::East);
+        assert_eq!(
+            (position.0 + 1) * 1000 + (position.1 + 1) * 4 + facing.value(),
+            6032
+        )
+    }
 }
 
 #[allow(dead_code)]
 pub fn part1() {
     let contents = read_file(module_path!());
-    // let (mut grid, sensors) = parse_file(&contents);
-    // println!("{}", count_eliminated(&mut grid, &sensors, 2_000_000));
+    let (grid, instructions) = parse_file(&contents);
+    let (position, facing) = execute(&grid, &instructions);
+
+    println!(
+        "{}",
+        (position.0 + 1) * 1000 + (position.1 + 1) * 4 + facing.value()
+    );
 }
 
 #[allow(dead_code)]
