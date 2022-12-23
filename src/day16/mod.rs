@@ -73,6 +73,14 @@ impl<'a> ValveGraph<'a> {
         self.valves.get_mut(valve).unwrap().paths = paths;
     }
 
+    fn get_path_value(&self, from: &str, to: &str) -> isize {
+        let mut value = 0;
+        let path = self.valves.get(from).unwrap().paths.get(to).unwrap();
+        for v in path {
+            value += self.valves.get(v).unwrap().rate as isize;
+        }
+        value - (path.len() as isize * 2)
+    }
     // fn get_expected_pressure(&self, from: &str, to: &str, minutes: u8) -> usize {
     //     let path_length = if from == to {
     //         0
@@ -308,14 +316,31 @@ Valve JJ has flow rate=21; tunnel leads to valve II";
         );
     }
 
-    // #[test]
-    // fn test_get_expected_pressure() {
-    //     let mut graph = parse_file(TEST_STR);
-    //     graph.calculate_all_paths();
-    //     assert_eq!(graph.get_expected_pressure("AA", "DD", 30), (30 - 2) * 20);
-    //     assert_eq!(graph.get_expected_pressure("AA", "BB", 30), 364);
-    //     assert_eq!(graph.get_expected_pressure("AA", "CC", 30), 54);
-    // }
+    #[test]
+    fn test_get_expected_pressure() {
+        let mut graph = parse_file(TEST_STR);
+        graph.calculate_all_paths();
+        for v in graph.valves.keys() {
+            println!(
+                "{} {} {:?}",
+                v,
+                graph.get_path_value("AA", v),
+                graph.valves.get("AA").unwrap().paths.get(v).unwrap()
+            );
+        }
+        println!("DD");
+        for v in graph.valves.keys() {
+            println!(
+                "{} {} {:?}",
+                v,
+                graph.get_path_value("BB", v),
+                graph.valves.get("BB").unwrap().paths.get(v).unwrap()
+            );
+        }
+        // assert_eq!(graph.get_expected_pressure("AA", "DD", 30), (30 - 2) * 20);
+        // assert_eq!(graph.get_expected_pressure("AA", "BB", 30), 364);
+        // assert_eq!(graph.get_expected_pressure("AA", "CC", 30), 54);
+    }
 
     // #[test]
     // fn test_get_best_pressure_path() {
@@ -354,17 +379,55 @@ pub fn part1() {
         .map(|k| *k)
         .collect();
     // println!("{:?}", non_zero_valves);
-    let permutations = non_zero_valves.iter().permutations(non_zero_valves.len());
+    // let start = vec!["OM", "RO", "SP"];
+    let mut highest_result = 0;
 
-    let bar = ProgressBar::new(1307674368000 as u64);
-    let outputs = permutations.par_bridge().map(|p| {
-        bar.inc(1);
-        graph
-            .clone()
-            .execute(&p.iter().map(|s| **s).collect::<Vec<&str>>())
-    });
-    bar.finish();
-    println!("{}", outputs.max().unwrap());
+    for i in 1..=5 {
+        // for s in non_zero_valves.iter() {
+        // let start = vec!["OM", "VR", "RO"];
+        // let start = vec!["OM", "VR", "RO", "SP", "KZ", "DI", "SO"];
+        // let start = vec!["OM", "RO", "SP", "KZ", "DI", "SO", "SC"];
+        // let start = vec!["RO", "SP", "KZ", "DI", "SO", "OM"];
+        // let start = vec!["RO", "SP", "KZ", "DI", "SO", "SC", "PW", "IR", "OM", "RI"];
+        let start = vec!["SP", "KZ"];
+        // let start = vec![];
+        // let start = vec![*s];
+        let permutations = non_zero_valves
+            .iter()
+            .filter(|v| !start.contains(*v))
+            .permutations(i);
+
+        let bar = ProgressBar::new(360360 as u64);
+        for p in permutations {
+            bar.inc(1);
+            let mut end = p.iter().map(|s| **s).collect::<Vec<&str>>();
+
+            {
+                let mut path = start.clone();
+                path.append(&mut end.clone());
+                let result = graph.clone().execute(&path);
+
+                if result > highest_result {
+                    println!("{result}, {:?}", path);
+                    highest_result = result;
+                }
+            }
+            {
+                let mut path = end.clone();
+                path.append(&mut start.clone());
+                let result = graph.clone().execute(&path);
+
+                if result > highest_result {
+                    println!("{result}, {:?}", path);
+                    highest_result = result;
+                }
+            }
+            // result
+        }
+        bar.finish();
+    }
+    // }
+    // println!("{}", outputs.max().unwrap());
 }
 
 #[allow(dead_code)]
