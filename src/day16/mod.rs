@@ -205,7 +205,7 @@ impl<'a> ValveGraph<'a> {
         // let mut pressure_released = 0;
         // let mut current_valve = "AA";
         // println!("Executing {:?}", sequence);
-        self.minutes_left = 30;
+        self.minutes_left = 26;
         self.pressure_released = 0;
         self.current_valve = "AA";
         for valve in self.valves.iter_mut() {
@@ -394,7 +394,12 @@ pub fn part1() {
     // println!("{:?}", non_zero_valves);
     // let start = vec!["OM", "RO", "SP"];
 
-    let permutations = non_zero_valves.iter().permutations(8);
+    //["OM", "VR", "SP", "RO", "KZ", "DI", "SO"] 1356
+
+    let permutations = non_zero_valves
+        .iter()
+        .filter(|v| !vec!["OM", "VR", "SP", "RO", "KZ", "DI", "SO"].contains(v))
+        .permutations(7);
     let output: usize = permutations
         .par_bridge()
         .fold(

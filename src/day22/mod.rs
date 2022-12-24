@@ -103,7 +103,11 @@ fn parse_file(text: &str) -> (Grid, Vec<Instruction>) {
     (grid, instructions)
 }
 
-fn get_next_position(grid: &Grid, position: &(usize, usize), facing: &Facing) -> (usize, usize) {
+fn get_next_position_map(
+    grid: &Grid,
+    position: &(usize, usize),
+    facing: &Facing,
+) -> (usize, usize) {
     match facing {
         Facing::North => {
             if position.0 == 0
@@ -170,14 +174,116 @@ fn get_next_position(grid: &Grid, position: &(usize, usize), facing: &Facing) ->
     }
 }
 
-fn execute(grid: &Grid, instructions: &Vec<Instruction>) -> ((usize, usize), Facing) {
+fn get_next_position_cube(
+    grid: &Grid,
+    position: &(usize, usize),
+    facing: &Facing,
+) -> ((usize, usize), Facing) {
+    let cube_size = grid
+        .iter()
+        .enumerate()
+        .find(|(_, col)| col[0] != GridState::Void)
+        .unwrap()
+        .0;
+
+    match facing {
+        Facing::North => {
+            if position.0 == 0 {
+                //1 -> 5
+                ((grid.len() - 1, position.1), *facing)
+            } else if position.1 > grid[position.0 - 1].len() - 1 {
+                //6 -> 4
+                (
+                    (
+                        cube_size * 2 - (position.1 - cube_size * 3),
+                        cube_size * 3 - 1,
+                    ),
+                    Facing::West,
+                )
+            } else if grid[position.0 - 1][position.1] == GridState::Void {
+                if position.1 < cube_size {
+                    //3 -> 1
+                    todo!()
+                } else {
+                    //2 -> 1
+                    todo!()
+                }
+            } else {
+                ((position.0 - 1, position.1), facing)
+            }
+        }
+        Facing::South => {
+            if position.0 == grid.len() - 1
+                || position.1 > grid[position.0 + 1].len() - 1
+                || grid[position.0 + 1][position.1] == GridState::Void
+            {
+                let valid_position = grid
+                    .iter()
+                    .enumerate()
+                    .find(|(_, col)| {
+                        position.1 < col.len() - 1 && col[position.1] != GridState::Void
+                    })
+                    .unwrap();
+                (valid_position.0, position.1)
+            } else {
+                (position.0 + 1, position.1)
+            }
+        }
+        Facing::East => {
+            if position.1 == grid[position.0].len() - 1
+                || grid[position.0][position.1 + 1] == GridState::Void
+            {
+                let valid_position = grid[position.0]
+                    .iter()
+                    .enumerate()
+                    .find(|(i, col)| **col != GridState::Void)
+                    .unwrap();
+                (position.0, valid_position.0)
+            } else {
+                (position.0, position.1 + 1)
+            }
+        }
+        Facing::West => {
+            if position.1 == 0 || grid[position.0][position.1 - 1] == GridState::Void {
+                let valid_position = grid[position.0]
+                    .iter()
+                    .rev()
+                    .enumerate()
+                    .find(|(i, col)| **col != GridState::Void)
+                    .unwrap();
+                (position.0, grid[position.0].len() - 1 - valid_position.0)
+            } else {
+                (position.0, position.1 - 1)
+            }
+        }
+    }
+}
+
+fn get_next_position(
+    is_cube: bool,
+    grid: &Grid,
+    position: &(usize, usize),
+    facing: &Facing,
+) -> (usize, usize) {
+    if is_cube {
+        get_next_position_cube(grid, position, facing)
+    } else {
+        get_next_position_map(grid, position, facing)
+    }
+}
+
+fn execute(
+    is_cube: bool,
+    grid: &Grid,
+    instructions: &Vec<Instruction>,
+) -> ((usize, usize), Facing) {
     let mut facing = Facing::East;
     let mut position = (0, 0);
     for instruction in instructions.iter() {
         match instruction {
             Instruction::Move(d) => {
                 for _ in 0..*d {
-                    let next_position = get_next_position(grid, &position, &facing);
+                    let next_position = get_next_position(is_cube, grid, &position, &facing);
                     match grid[next_position.0][next_position.1] {
                         GridState::Void => panic!("Ran into void!"),
                         GridState::Path => position = next_position,
@@ -223,18 +329,27 @@ mod tests {
     }
 
     #[test]
-    fn test_get_next_position() {
+    fn test_get_next_position_map() {
         let (grid, _) = parse_file(TEST_STR);
-        assert_eq!(get_next_position(&grid, &(0, 8), &Facing::East), (0, 9));
-        assert_eq!(get_next_position(&grid, &(0, 8), &Facing::West), (0, 11));
-        assert_eq!(get_next_position(&grid, &(0, 8), &Facing::South), (1, 8));
-        assert_eq!(get_next_position(&grid, &(0, 8), &Facing::North), (11, 8));
+        assert_eq!(get_next_position_map(&grid, &(0, 8), &Facing::East), (0, 9));
+        assert_eq!(
+            get_next_position_map(&grid, &(0, 8), &Facing::West),
+            (0, 11)
+        );
+        assert_eq!(
+            get_next_position_map(&grid, &(0, 8), &Facing::South),
+            (1, 8)
+        );
+        assert_eq!(
+            get_next_position_map(&grid, &(0, 8), &Facing::North),
+            (11, 8)
+        );
     }
 
     #[test]
     fn test_execute() {
         let (grid, instructions) = parse_file(TEST_STR);
-        let (position, facing) = execute(&grid, &instructions);
+        let (position, facing) = execute(false, &grid, &instructions);
         assert_eq!(position.0, 5);
         assert_eq!(position.1, 7);
         assert_eq!(facing, Facing::East);
